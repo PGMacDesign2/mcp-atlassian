@@ -68,4 +68,50 @@ class JiraFetcher(
     pass
 
 
-__all__ = ["JiraFetcher", "JiraConfig", "JiraClient", "Jira"]
+# Utility functions for custom fields management
+def register_jira_custom_field(jira_client: JiraFetcher, field_name_or_id: str) -> str | None:
+    """
+    Register a custom field for inclusion in Jira API requests.
+    
+    Args:
+        jira_client: The JiraFetcher instance
+        field_name_or_id: Name or ID of the custom field to register
+        
+    Returns:
+        The field ID if registration was successful, None otherwise
+    """
+    return jira_client.register_custom_field(field_name_or_id)
+
+
+def list_jira_custom_fields(jira_client: JiraFetcher) -> list[str]:
+    """
+    List all registered custom fields.
+    
+    Args:
+        jira_client: The JiraFetcher instance
+        
+    Returns:
+        List of custom field IDs currently registered
+    """
+    return jira_client.get_custom_fields_list()
+
+
+def clear_jira_custom_fields(jira_client: JiraFetcher) -> None:
+    """
+    Clear all registered custom fields.
+    
+    Args:
+        jira_client: The JiraFetcher instance
+    """
+    jira_client.clear_custom_fields()
+
+
+__all__ = [
+    "JiraFetcher", 
+    "JiraConfig", 
+    "JiraClient", 
+    "Jira",
+    "register_jira_custom_field",
+    "list_jira_custom_fields",
+    "clear_jira_custom_fields",
+]

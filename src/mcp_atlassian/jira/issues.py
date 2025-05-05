@@ -68,6 +68,11 @@ class IssuesMixin(
             elif isinstance(fields_param, list | tuple | set):
                 fields_param = ",".join(fields_param)
 
+            # Add custom fields from config
+            custom_fields = []
+            if hasattr(self, "config") and hasattr(self.config, "custom_fields"):
+                custom_fields = self.config.custom_fields
+
             # Ensure necessary fields are included based on special parameters
             if (
                 fields_param == ",".join(DEFAULT_READ_JIRA_FIELDS)
@@ -105,10 +110,25 @@ class IssuesMixin(
                 ):
                     additional_fields.append("properties")
 
+                # Add custom fields from configuration
+                for custom_field in custom_fields:
+                    if (
+                        custom_field not in default_fields_list
+                        and custom_field not in additional_fields
+                    ):
+                        additional_fields.append(custom_field)
+
                 # Combine default fields with additional fields, preserving order
                 if additional_fields:
                     fields_param = ",".join(default_fields_list + additional_fields)
-            # Handle non-default fields string
+            elif fields_param != "*all":
+                # For non-default field strings that aren't "*all",
+                # ensure custom fields are added if they aren't already included
+                fields_list = fields_param.split(",")
+                for custom_field in custom_fields:
+                    if custom_field not in fields_list:
+                        fields_list.append(custom_field)
+                fields_param = ",".join(fields_list)
 
             # Build expand parameter if provided
             expand_param = expand

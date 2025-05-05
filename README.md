@@ -119,6 +119,7 @@ There are two main approaches to configure the Docker container:
 >
 > - `CONFLUENCE_SPACES_FILTER`: Filter by space keys (e.g., "DEV,TEAM,DOC")
 > - `JIRA_PROJECTS_FILTER`: Filter by project keys (e.g., "PROJ,DEV,SUPPORT")
+> - `JIRA_CUSTOM_FIELDS`: Comma-separated list of custom field IDs to include in issue requests (e.g., "customfield_10016,customfield_10026")
 > - `READ_ONLY_MODE`: Set to "true" to disable write operations
 > - `MCP_VERBOSE`: Set to "true" for more detailed logging
 > - `ENABLED_TOOLS`: Comma-separated list of tool names to enable (e.g., "confluence_search,jira_get_issue")
@@ -505,3 +506,65 @@ We use pre-commit hooks for code quality and follow semantic versioning for rele
 ## License
 
 Licensed under MIT - see [LICENSE](LICENSE) file. This is not an official Atlassian product.
+
+## Working with Jira
+
+### Basic Usage
+
+The Jira integration provides a wide range of functionality, including:
+
+- Searching for issues
+- Getting issue details
+- Creating and updating issues
+- Transitioning issues through workflows
+- Working with epics and sprints
+- Adding comments and worklogs
+
+### Working with Custom Fields
+
+Jira extensively uses custom fields for various purposes, including agile fields like story points. To work with custom fields:
+
+1. **Using Environment Variables**:
+   Set the `JIRA_CUSTOM_FIELDS` environment variable with a comma-separated list of custom field IDs:
+   ```
+   JIRA_CUSTOM_FIELDS=customfield_10016,customfield_10026
+   ```
+
+2. **Using Command Line**:
+   When running the server directly, use the `--jira-custom-fields` option:
+   ```bash
+   uvx mcp-atlassian@latest --jira-custom-fields=customfield_10016,customfield_10026
+   ```
+
+3. **Programmatically (Python)**:
+   You can also register custom fields via the Python API:
+   ```python
+   from mcp_atlassian.jira import JiraFetcher, register_jira_custom_field
+   
+   # Initialize the Jira client
+   jira = JiraFetcher()
+   
+   # Register a custom field by ID
+   register_jira_custom_field(jira, "customfield_10016")  # Story Points
+   
+   # Or register by name (will search for matching custom fields)
+   register_jira_custom_field(jira, "Story Points")
+   
+   # List registered custom fields
+   from mcp_atlassian.jira import list_jira_custom_fields
+   fields = list_jira_custom_fields(jira)
+   
+   # Clear registered custom fields
+   from mcp_atlassian.jira import clear_jira_custom_fields
+   clear_jira_custom_fields(jira)
+   ```
+
+4. **Finding Custom Field IDs**:
+   If you don't know the ID of a custom field, you can search for it:
+   ```python
+   fields = jira.search_fields("Story Points")
+   for field in fields:
+       print(f"{field.get('id')}: {field.get('name')}")
+   ```
+
+Once registered, custom fields will be automatically included in all issue requests.

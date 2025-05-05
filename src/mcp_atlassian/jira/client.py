@@ -133,6 +133,60 @@ class JiraClient:
         _ = self.config.url if hasattr(self, "config") else ""
         return self.preprocessor.markdown_to_jira(markdown_text)
 
+    def add_custom_field(self, field_id: str) -> None:
+        """
+        Add a custom field to the list of fields that should be included in requests.
+        
+        Args:
+            field_id: The ID of the custom field (e.g., 'customfield_10016')
+        """
+        if not hasattr(self, "config"):
+            logger.warning("No config available, cannot add custom field")
+            return
+            
+        if field_id not in self.config.custom_fields:
+            self.config.custom_fields.append(field_id)
+            logger.debug(f"Added custom field {field_id} to configuration")
+
+    def remove_custom_field(self, field_id: str) -> None:
+        """
+        Remove a custom field from the list of fields that should be included in requests.
+        
+        Args:
+            field_id: The ID of the custom field (e.g., 'customfield_10016')
+        """
+        if not hasattr(self, "config"):
+            logger.warning("No config available, cannot remove custom field")
+            return
+            
+        if field_id in self.config.custom_fields:
+            self.config.custom_fields.remove(field_id)
+            logger.debug(f"Removed custom field {field_id} from configuration")
+
+    def get_custom_fields_list(self) -> list[str]:
+        """
+        Get the list of custom fields that are included in requests.
+        
+        Returns:
+            List of custom field IDs
+        """
+        if not hasattr(self, "config"):
+            logger.warning("No config available, returning empty custom fields list")
+            return []
+            
+        return self.config.custom_fields.copy()
+
+    def clear_custom_fields(self) -> None:
+        """
+        Clear the list of custom fields that are included in requests.
+        """
+        if not hasattr(self, "config"):
+            logger.warning("No config available, cannot clear custom fields")
+            return
+            
+        self.config.custom_fields = []
+        logger.debug("Cleared custom fields from configuration")
+
     def get_paged(
         self,
         method: Literal["get", "post"],

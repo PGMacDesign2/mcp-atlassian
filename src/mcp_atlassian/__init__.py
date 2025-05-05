@@ -84,6 +84,10 @@ logger = setup_logging(logging_level)
     help="Comma-separated list of Jira project keys to filter search results",
 )
 @click.option(
+    "--jira-custom-fields",
+    help="Comma-separated list of Jira custom field IDs to include in issue requests (e.g., customfield_10016,customfield_10026)",
+)
+@click.option(
     "--read-only",
     is_flag=True,
     help="Run in read-only mode (disables all write operations)",
@@ -130,6 +134,7 @@ def main(
     jira_personal_token: str | None,
     jira_ssl_verify: bool,
     jira_projects_filter: str | None,
+    jira_custom_fields: str | None,
     read_only: bool = False,
     enabled_tools: str | None = None,
     oauth_client_id: str | None = None,
@@ -273,6 +278,10 @@ def main(
     # Set projects filter for Jira
     if jira_projects_filter:
         os.environ["JIRA_PROJECTS_FILTER"] = jira_projects_filter
+
+    # Set custom fields for Jira
+    if jira_custom_fields:
+        os.environ["JIRA_CUSTOM_FIELDS"] = jira_custom_fields
 
     from .servers import main_mcp
 

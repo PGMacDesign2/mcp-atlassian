@@ -461,47 +461,114 @@ class FieldsMixin(JiraClient, EpicOperationsProto, UsersOperationsProto):
         self, keyword: str, limit: int = 10, *, refresh: bool = False
     ) -> list[dict[str, Any]]:
         """
-        Search fields using fuzzy matching.
+        Search for fields by name or ID using fuzzy matching.
 
         Args:
-            keyword: The search keyword
-            limit: Maximum number of results to return (default: 10)
-            refresh: When True, forces a refresh from the server
+            keyword: The search term
+            limit: Maximum number of results to return
+            refresh: Whether to refresh field data from the server
 
         Returns:
-            List of matching field definitions, sorted by relevance
+            List of field definitions matching the search criteria
         """
         try:
-            # Get all fields
             fields = self.get_fields(refresh=refresh)
+            if not fields:
+                logger.error("No fields available to search")
+                return []
 
-            # if keyword is empty, return `limit` fields
             if not keyword:
-                return fields[:limit]
+                return fields[:limit]  # Return first 'limit' fields
 
+            # Define a function to calculate similarity score
             def similarity(keyword: str, field: dict) -> int:
-                """Calculate similarity score between keyword and field."""
-                name_candidates = [
-                    field.get("id", ""),
-                    field.get("key", ""),
-                    field.get("name", ""),
-                    *field.get("clauseNames", []),
-                ]
+                # Default low score
+                score = 0
+                # Score the ID match (exact match)
+                if "id" in field and field["id"] == keyword:
+                    score = 100  # Highest priority for exact ID match
+                elif "key" in field and field["key"] == keyword:
+                    score = 95  # Nearly highest priority for exact key match
+                # Score the name
+                elif "name" in field:
+                    # Check exact name match first
+                    if field["name"].lower() == keyword.lower():
+                        score = 90
+                    else:
+                        # Otherwise use fuzzy matching
+                        score = fuzz.partial_ratio(field["name"].lower(), keyword.lower())
 
-                # Calculate the fuzzy match score
-                return max(
-                    fuzz.partial_ratio(keyword.lower(), name.lower())
-                    for name in name_candidates
-                )
+                # Also check clause names if available
+                if "clauseNames" in field and isinstance(field["clauseNames"], list):
+                    for clause in field["clauseNames"]:
+                        clause_score = fuzz.partial_ratio(
+                            clause.lower(), keyword.lower()
+                        )
+                        score = max(score, clause_score)
 
-            # Sort by similarity
-            sorted_fields = sorted(
-                fields, key=lambda x: similarity(keyword, x), reverse=True
-            )
+                return score
 
-            # Return the top limit results
-            return sorted_fields[:limit]
+            # Calculate scores and sort fields
+            scored_fields = [(similarity(keyword, field), field) for field in fields]
+            scored_fields.sort(reverse=True, key=lambda x: x[0])  # Sort by score
+
+            # Return fields with non-zero scores up to the limit
+            return [
+                field for score, field in scored_fields if score > 0
+            ][:limit]  # Limit results
 
         except Exception as e:
             logger.error(f"Error searching fields: {str(e)}")
             return []
+
+    def register_custom_field(self, field_name_or_id: str) -> str | None:
+        """
+        Register a custom field by name or ID for inclusion in API requests.
+        
+        This method searches for the field first and then adds it to the 
+        custom_fields list in the configuration.
+        
+        Args:
+            field_name_or_id: The name or ID of the field to register
+            
+        Returns:
+            The field ID if successfully registered, None otherwise
+        """
+        try:
+            # First, see if this is already a field ID
+            if field_name_or_id.startswith("customfield_"):
+                field_id = field_name_or_id
+                # Verify that this ID exists
+                field = self.get_field_by_id(field_id)
+                if not field:
+                    logger.warning(f"Custom field ID {field_id} not found in Jira")
+            else:
+                # Search for the field by name
+                matching_fields = self.search_fields(field_name_or_id, limit=5)
+                if not matching_fields:
+                    logger.warning(f"No fields found matching '{field_name_or_id}'")
+                    return None
+                    
+                # Find the best custom field match
+                custom_matches = [f for f in matching_fields if self.is_custom_field(f.get("id", ""))]
+                if not custom_matches:
+                    logger.warning(f"No custom fields found matching '{field_name_or_id}'")
+                    return None
+                    
+                field_id = custom_matches[0].get("id")
+                if not field_id:
+                    logger.warning(f"Field matching '{field_name_or_id}' has no ID")
+                    return None
+            
+            # Add the field to the custom fields list
+            if hasattr(self, "add_custom_field"):
+                self.add_custom_field(field_id)
+                logger.info(f"Registered custom field '{field_id}' for inclusion in API requests")
+                return field_id
+            else:
+                logger.warning("add_custom_field method not available")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error registering custom field: {str(e)}")
+            return None

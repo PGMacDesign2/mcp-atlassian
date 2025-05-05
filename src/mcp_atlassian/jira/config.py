@@ -25,6 +25,12 @@ class JiraConfig:
     oauth_config: OAuthConfig | None = None  # OAuth 2.0 configuration
     ssl_verify: bool = True  # Whether to verify SSL certificates
     projects_filter: str | None = None  # List of project keys to filter searches
+    custom_fields: list[str] = None  # List of custom fields to include in requests
+
+    def __post_init__(self):
+        """Initialize default values for mutable fields."""
+        if self.custom_fields is None:
+            self.custom_fields = []
 
     @property
     def is_cloud(self) -> bool:
@@ -98,6 +104,10 @@ class JiraConfig:
         # Get the projects filter if provided
         projects_filter = os.getenv("JIRA_PROJECTS_FILTER")
 
+        # Get custom fields if provided
+        custom_fields_str = os.getenv("JIRA_CUSTOM_FIELDS")
+        custom_fields = custom_fields_str.split(",") if custom_fields_str else []
+
         return cls(
             url=url,
             auth_type=auth_type,
@@ -107,4 +117,5 @@ class JiraConfig:
             oauth_config=oauth_config,
             ssl_verify=ssl_verify,
             projects_filter=projects_filter,
+            custom_fields=custom_fields,
         )
